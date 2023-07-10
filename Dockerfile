@@ -1,4 +1,4 @@
-FROM golang:latest AS build
+FROM golang:1.19 AS build
 
 LABEL maintainer="Saman Hoseini <saman2000hoseini@gmail.com>"
 
@@ -10,18 +10,16 @@ RUN go mod download
 
 COPY . .
 
-WORKDIR /app/cmd
-
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /webhook-proxy .
+RUN CGO_ENABLED=0 GOOS=linux go build -o webhook-proxy ./cmd/webhook-proxy
 
 #Second stage of build
-FROM alpine:latest
+FROM alpine:3.18
 
 RUN apk --no-cache add ca-certificates
 
 WORKDIR /app/
 
-COPY --from=build /webhook-proxy .
+COPY --from=build /app/webhook-proxy .
 
 EXPOSE 80
 
