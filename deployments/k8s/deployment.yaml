@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: webhook-proxy
+  name: webhook-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-proxy
+  strategy: { }
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: webhook-proxy
+    spec:
+      containers:
+        - image: webhook-proxy:6.2.6
+          name: webhook-proxy
+          ports:
+            - containerPort: 65432
+          resources: { }
+status: { }

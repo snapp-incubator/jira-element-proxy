@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webhook-proxy-config
+data:
+  config.yml: |-
+    element:
+      url: value
