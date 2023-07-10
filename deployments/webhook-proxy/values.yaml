@@ -1,0 +1,23 @@
+replicaCount: 1
+
+image:
+  repository: quay.io/snapp/webhook-proxy
+  pullPolicy: Always
+  tag: "v1.0"
+
+service:
+  port: 80
+
+resources:
+  limits:
+    memory: 500Mi
+    cpu: 500m
+  requests:
+    memory: 500Mi
+    cpu: 300m
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetMemoryUtilizationPercentage: 80
