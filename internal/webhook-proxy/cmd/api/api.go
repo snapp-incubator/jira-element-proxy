@@ -19,10 +19,6 @@ import (
 func main(cfg config.Config) {
 	app := echo.New()
 
-	if err := app.Start(fmt.Sprintf(":%d", cfg.API.Port)); !errors.Is(err, http.ErrServerClosed) {
-		logrus.Fatalf("echo initiation failed: %s", err)
-	}
-
 	proxyHandler := handler.Proxy{ElementURL: cfg.Element.URL}
 
 	logrus.Println("API has been started :D")
@@ -30,6 +26,10 @@ func main(cfg config.Config) {
 	app.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
 	app.GET("/element", proxyHandler.ProxyToElement)
+
+	if err := app.Start(fmt.Sprintf(":%d", cfg.API.Port)); !errors.Is(err, http.ErrServerClosed) {
+		logrus.Fatalf("echo initiation failed: %s", err)
+	}
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
