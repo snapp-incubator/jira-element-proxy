@@ -68,6 +68,11 @@ func (p *Proxy) proxyRequest(body []byte, url string) bool {
 	}
 
 	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logrus.Errorf("proxy request to element error: %s", err)
+		return false
+	}
+
 	logrus.Errorf("proxy request to element error: %s", responseBody)
 	return false
 }
