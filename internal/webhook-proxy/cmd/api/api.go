@@ -25,7 +25,7 @@ func main(cfg config.Config) {
 
 	app.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
-	app.GET("/element", proxyHandler.ProxyToElement)
+	app.POST("/element", proxyHandler.ProxyToElement)
 
 	if err := app.Start(fmt.Sprintf(":%d", cfg.API.Port)); !errors.Is(err, http.ErrServerClosed) {
 		logrus.Fatalf("echo initiation failed: %s", err)
