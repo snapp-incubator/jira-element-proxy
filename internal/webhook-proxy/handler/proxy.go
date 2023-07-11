@@ -42,7 +42,7 @@ func (p *Proxy) ProxyToElement(c echo.Context) error {
 
 func (p *Proxy) proxyRequest(body []byte, url string) bool {
 	body, err := json.Marshal(elementBody{
-		Text:        string(body),
+		Text:        "test",
 		DisplayName: DisplayName,
 	})
 	if err != nil {
