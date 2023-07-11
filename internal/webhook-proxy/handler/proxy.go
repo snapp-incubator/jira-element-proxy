@@ -18,7 +18,7 @@ type (
 		ElementURL string
 	}
 
-	elementBody struct {
+	ElementBody struct {
 		Text        string `json:"text"`
 		DisplayName string `json:"displayName"`
 	}
@@ -41,7 +41,7 @@ func (p *Proxy) ProxyToElement(c echo.Context) error {
 }
 
 func (p *Proxy) proxyRequest(jiraBody []byte, url string) bool {
-	body, err := json.Marshal(elementBody{
+	body, err := json.Marshal(ElementBody{
 		Text:        "test",
 		DisplayName: DisplayName,
 	})
