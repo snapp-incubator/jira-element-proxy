@@ -40,19 +40,19 @@ func (p *Proxy) ProxyToElement(c echo.Context) error {
 	return c.NoContent(http.StatusInternalServerError)
 }
 
-func (p *Proxy) proxyRequest(body []byte, url string) bool {
+func (p *Proxy) proxyRequest(jiraBody []byte, url string) bool {
 	body, err := json.Marshal(elementBody{
 		Text:        "test",
 		DisplayName: DisplayName,
 	})
 	if err != nil {
-		logrus.Errorf("proxy request to element error: %s", err)
+		logrus.Errorf("marshal request body error: %s", err)
 		return false
 	}
 
 	proxyReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
-		logrus.Errorf("proxy request to element error: %s", err)
+		logrus.Errorf("create proxy request error: %s", err)
 		return false
 	}
 
@@ -69,10 +69,10 @@ func (p *Proxy) proxyRequest(body []byte, url string) bool {
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logrus.Errorf("proxy request to element error: %s", err)
+		logrus.Errorf("element response body read error: %s", err)
 		return false
 	}
 
-	logrus.Errorf("proxy request to element error: %s", responseBody)
+	logrus.Errorf("element response body read error: %s", responseBody)
 	return false
 }
