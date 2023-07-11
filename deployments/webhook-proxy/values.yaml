@@ -6,7 +6,7 @@ image:
   tag: "main@sha256:afb77917d7186242ace86974cc7276974a2d3efb98dd90462b1614902a085bdf"
 
 service:
-  port: 80
+  port: 8080
 
 resources:
   limits:
