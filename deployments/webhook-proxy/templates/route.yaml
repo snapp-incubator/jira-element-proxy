@@ -3,7 +3,6 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: webhook-proxy
-  namespace: webhook-proxy
 spec:
   host: webhook-proxy.apps.private.{{ .Values.region_hostname }}
   port:
