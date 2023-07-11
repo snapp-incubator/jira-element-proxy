@@ -42,7 +42,7 @@ func (p *Proxy) ProxyToElement(c echo.Context) error {
 
 func (p *Proxy) proxyRequest(jiraBody []byte, url string) bool {
 	body, err := json.Marshal(ElementBody{
-		Text:        "test",
+		Text:        string(jiraBody),
 		DisplayName: DisplayName,
 	})
 	if err != nil {
@@ -55,6 +55,8 @@ func (p *Proxy) proxyRequest(jiraBody []byte, url string) bool {
 		logrus.Errorf("create proxy request error: %s", err)
 		return false
 	}
+
+	proxyReq.Header.Add("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(proxyReq)
 	if err != nil {
