@@ -21,6 +21,6 @@ WORKDIR /app/
 
 COPY --from=build /app/webhook-proxy .
 
-EXPOSE 80
+EXPOSE 8080
 
-CMD ["./webhook-proxy", "api"]
+CMD ["/app/webhook-proxy", "api"]
