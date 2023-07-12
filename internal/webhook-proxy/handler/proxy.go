@@ -84,6 +84,6 @@ func (p *Proxy) proxyRequest(txt string, url string) bool {
 func generateElementText(req *request.Jira) string {
 	return fmt.Sprintf(
 		"Type: %s\nSummary: %s\nIssuer: %s\nURL: %s",
-		req.Issue.Fields.RequestType.Name, req.Issue.Fields.Summary, req.User.Name,
+		req.Issue.Fields.CustomField11401.RequestType.Name, req.Issue.Fields.Summary, req.User.Name,
 		req.Issue.Fields.CustomField11401.Links.Web)
 }

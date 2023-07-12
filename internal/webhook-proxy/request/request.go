@@ -28,11 +28,11 @@ type Jira struct {
 				Links struct {
 					Web string `json:"web"`
 				} `json:"_links"`
+				RequestType struct {
+					Name        string `json:"name"`
+					Description string `json:"description"`
+				} `json:"requestType"`
 			} `json:"customfield_11401"`
-			RequestType struct {
-				Name        string `json:"name"`
-				Description string `json:"description"`
-			} `json:"requestType"`
 			Summary   string `json:"summary"`
 			IssueType struct {
 				Description string `json:"description"`
