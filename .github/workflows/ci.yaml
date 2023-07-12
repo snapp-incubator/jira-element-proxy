@@ -4,10 +4,29 @@ on:
   push:
     branches: [ main ]
     tags: [ v* ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.19'
+      - run: go test -v ./... -covermode=atomic -coverprofile=coverage.out
+      - uses: codecov/codecov-action@v1
+        with:
+          files: coverage.out
   docker:
     name: docker
     runs-on: ubuntu-latest
@@ -40,3 +59,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+

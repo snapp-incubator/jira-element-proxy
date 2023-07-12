@@ -6,7 +6,7 @@ metadata:
 spec:
   host: webhook-proxy.apps.private.{{ .Values.region_hostname }}
   port:
-    targetPort: http
+    targetPort: 8080
   to:
     kind: Service
     name: webhook-proxy
