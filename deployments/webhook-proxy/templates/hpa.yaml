@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: webhook-proxy
+  name: jira-webhook-proxy
   labels:
-    app: webhook-proxy
+    app: jira-webhook-proxy
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: webhook-proxy
+    name: jira-webhook-proxy
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

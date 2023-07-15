@@ -1,5 +1,5 @@
 apiVersion: v2
-name: webhook-proxy
+name: jira-webhook-proxy
 description: A Helm chart for webhook-proxy app
 
 type: application
