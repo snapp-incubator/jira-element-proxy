@@ -5,6 +5,6 @@ metadata:
 data:
   config.yml: |-
     element:
-      url: value
+      url: {{ .Values.jira_element_webhook_url }}
     api:
       port: 8080
