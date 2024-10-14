@@ -27,9 +27,17 @@ type (
 )
 
 func (p *Proxy) ProxyToElement(c echo.Context) error {
-	req := &request.Jira{}
+	req := &request.JiraRequest{}
 
-	err := c.Bind(req)
+	body, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		return c.String(http.StatusInternalServerError, "Error reading body")
+	}
+
+	c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
+	fmt.Printf("Request Body: %s\n Request", string(body), c.Request())
+
+	err = c.Bind(req)
 	if err != nil {
 		logrus.Errorf("failed to read request body: %s", err.Error())
 		return c.NoContent(http.StatusBadRequest)
@@ -81,9 +89,13 @@ func (p *Proxy) proxyRequest(txt string, url string) bool {
 	return false
 }
 
-func generateElementText(req *request.Jira) string {
+func generateElementText(req *request.JiraRequest) string {
 	return fmt.Sprintf(
-		"Type: %s\nSummary: %s\nIssuer: %s\nURL: %s",
-		req.Issue.Fields.CustomField11401.RequestType.Name, req.Issue.Fields.Summary, req.User.Name,
-		req.Issue.Fields.CustomField11401.Links.Web)
+		"Type: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
+		req.Fields.CustomField10003.RequestType.Name,
+		req.Fields.Summary,
+		req.Fields.Creator.DisplayName,
+		req.Fields.CustomField10003.Links.Web,
+		req.Fields.Assignee.DisplayName,
+	)
 }
