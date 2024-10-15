@@ -117,7 +117,7 @@ func (p *Proxy) proxyRequest(txt string, url string) bool {
 func generateElementText(req *request.JiraRequest, isComment bool) string {
 	if isComment {
 		return fmt.Sprintf(
-			"📰 New Comment Added\n   Type: %s\n   Summary: %s\n   Issuer: %s\n   URL: %s\n   Assignee: %s\n",
+			"📰\nNew Comment Added\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s\n",
 			req.Fields.CustomField10003.RequestType.Name,
 			req.Fields.Summary,
 			req.Fields.Creator.DisplayName,
@@ -126,7 +126,7 @@ func generateElementText(req *request.JiraRequest, isComment bool) string {
 		)
 	} else {
 		return fmt.Sprintf(
-			"🎯 Type: %s\n   Summary: %s\n   Issuer: %s\n   URL: %s\n   Assignee: %s",
+			"🎯\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
 			req.Fields.CustomField10003.RequestType.Name,
 			req.Fields.Summary,
 			req.Fields.Creator.DisplayName,
