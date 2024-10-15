@@ -6,5 +6,8 @@ data:
   config.yml: |-
     element:
       url: {{ .Values.jira_element_webhook_url }}
+      runtime_url: {{ .Values.service_desk_notification.runtime }}
+      platform_url: {{ .Values.service_desk_notification.platform }}
+      network_url: {{ .Values.service_desk_notification.network }}
     api:
       port: 8080

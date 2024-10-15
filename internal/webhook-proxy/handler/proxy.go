@@ -6,18 +6,22 @@ import (
 	"fmt"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
+	"github.com/snapp-incubator/jira-element-proxy/internal/config"
 	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/request"
 	"io"
 	"net/http"
 )
 
 const (
-	DisplayName = "Service Desk"
+	DisplayName      = "Service Desk"
+	PLATFORM_SUBTEAM = "platform"
+	NETWORK_SUBTEAM  = "network"
+	RUNTIME_SUBTEAM  = "runtime"
 )
 
 type (
 	Proxy struct {
-		ElementURL string
+		ElementConf config.Element
 	}
 
 	ElementBody struct {
@@ -26,28 +30,48 @@ type (
 	}
 )
 
-func (p *Proxy) ProxyToElement(c echo.Context) error {
-	req := &request.JiraRequest{}
+func (p *Proxy) ProxyToElementHandler() echo.HandlerFunc {
+	return func(c echo.Context) error {
+		subteam := c.Param("team")
+		req := &request.JiraRequest{}
+		body, err := io.ReadAll(c.Request().Body)
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "Error reading body")
+		}
 
-	body, err := io.ReadAll(c.Request().Body)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "Error reading body")
+		c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
+		fmt.Printf("Request Body: %s\n", string(body))
+
+		err = c.Bind(req)
+		if err != nil {
+			logrus.Errorf("failed to read request body: %s", err.Error())
+			return c.NoContent(http.StatusBadRequest)
+		}
+		logrus.Println("team name:", subteam)
+		switch subteam {
+		case PLATFORM_SUBTEAM:
+			logrus.Printf("using platform url %s", p.ElementConf.PlatformURL)
+			if p.proxyRequest(generateElementText(req), p.ElementConf.PlatformURL) {
+				return c.NoContent(http.StatusOK)
+			}
+		case NETWORK_SUBTEAM:
+			logrus.Printf("using network url %s", p.ElementConf.NetworkURL)
+			if p.proxyRequest(generateElementText(req), p.ElementConf.NetworkURL) {
+				return c.NoContent(http.StatusOK)
+			}
+		case RUNTIME_SUBTEAM:
+			logrus.Printf("using runtime url %s", p.ElementConf.RuntimeURL)
+			if p.proxyRequest(generateElementText(req), p.ElementConf.RuntimeURL) {
+				return c.NoContent(http.StatusOK)
+			}
+		default:
+			if p.proxyRequest(generateElementText(req), p.ElementConf.URL) {
+				return c.NoContent(http.StatusOK)
+			}
+		}
+
+		return c.NoContent(http.StatusInternalServerError)
 	}
-
-	c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
-	fmt.Printf("Request Body: %s\n Request", string(body), c.Request())
-
-	err = c.Bind(req)
-	if err != nil {
-		logrus.Errorf("failed to read request body: %s", err.Error())
-		return c.NoContent(http.StatusBadRequest)
-	}
-
-	if p.proxyRequest(generateElementText(req), p.ElementURL) {
-		return c.NoContent(http.StatusOK)
-	}
-
-	return c.NoContent(http.StatusInternalServerError)
 }
 
 func (p *Proxy) proxyRequest(txt string, url string) bool {
