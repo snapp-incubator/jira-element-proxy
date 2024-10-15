@@ -30,7 +30,7 @@ type (
 	}
 )
 
-func (p *Proxy) ProxyToElementHandler() echo.HandlerFunc {
+func (p *Proxy) ProxyToElementHandler(isComment bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		subteam := c.Param("team")
 		req := &request.JiraRequest{}
@@ -47,25 +47,26 @@ func (p *Proxy) ProxyToElementHandler() echo.HandlerFunc {
 			logrus.Errorf("failed to read request body: %s", err.Error())
 			return c.NoContent(http.StatusBadRequest)
 		}
-		logrus.Println("team name:", subteam)
+		generatedElementText := generateElementText(req, isComment)
+		logrus.Printf("team name: %s\n generatedElementText: %s", subteam, generatedElementText)
 		switch subteam {
 		case PLATFORM_SUBTEAM:
 			logrus.Printf("using platform url %s", p.ElementConf.PlatformURL)
-			if p.proxyRequest(generateElementText(req), p.ElementConf.PlatformURL) {
+			if p.proxyRequest(generatedElementText, p.ElementConf.PlatformURL) {
 				return c.NoContent(http.StatusOK)
 			}
 		case NETWORK_SUBTEAM:
 			logrus.Printf("using network url %s", p.ElementConf.NetworkURL)
-			if p.proxyRequest(generateElementText(req), p.ElementConf.NetworkURL) {
+			if p.proxyRequest(generatedElementText, p.ElementConf.NetworkURL) {
 				return c.NoContent(http.StatusOK)
 			}
 		case RUNTIME_SUBTEAM:
 			logrus.Printf("using runtime url %s", p.ElementConf.RuntimeURL)
-			if p.proxyRequest(generateElementText(req), p.ElementConf.RuntimeURL) {
+			if p.proxyRequest(generatedElementText, p.ElementConf.RuntimeURL) {
 				return c.NoContent(http.StatusOK)
 			}
 		default:
-			if p.proxyRequest(generateElementText(req), p.ElementConf.URL) {
+			if p.proxyRequest(generatedElementText, p.ElementConf.URL) {
 				return c.NoContent(http.StatusOK)
 			}
 		}
@@ -113,13 +114,24 @@ func (p *Proxy) proxyRequest(txt string, url string) bool {
 	return false
 }
 
-func generateElementText(req *request.JiraRequest) string {
-	return fmt.Sprintf(
-		"Type: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
-		req.Fields.CustomField10003.RequestType.Name,
-		req.Fields.Summary,
-		req.Fields.Creator.DisplayName,
-		req.Fields.CustomField10003.Links.Web,
-		req.Fields.Assignee.DisplayName,
-	)
+func generateElementText(req *request.JiraRequest, isComment bool) string {
+	if isComment {
+		return fmt.Sprintf(
+			"📰New Comment Added\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s\n",
+			req.Fields.CustomField10003.RequestType.Name,
+			req.Fields.Summary,
+			req.Fields.Creator.DisplayName,
+			req.Fields.CustomField10003.Links.Web,
+			req.Fields.Assignee.DisplayName,
+		)
+	} else {
+		return fmt.Sprintf(
+			"🎯Type: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
+			req.Fields.CustomField10003.RequestType.Name,
+			req.Fields.Summary,
+			req.Fields.Creator.DisplayName,
+			req.Fields.CustomField10003.Links.Web,
+			req.Fields.Assignee.DisplayName,
+		)
+	}
 }
