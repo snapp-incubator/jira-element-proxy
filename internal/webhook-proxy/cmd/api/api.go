@@ -19,13 +19,14 @@ import (
 func main(cfg config.Config) {
 	app := echo.New()
 
-	proxyHandler := handler.Proxy{ElementURL: cfg.Element.URL}
+	proxyHandler := handler.Proxy{ElementConf: cfg.Element}
 
 	logrus.Println("API has been started :D")
 
 	app.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
-	app.POST("/element", proxyHandler.ProxyToElement)
+	app.POST("/:team", proxyHandler.ProxyToElementHandler(false))
+	app.POST("/comment/:team", proxyHandler.ProxyToElementHandler(true))
 
 	if err := app.Start(fmt.Sprintf(":%d", cfg.API.Port)); !errors.Is(err, http.ErrServerClosed) {
 		logrus.Fatalf("echo initiation failed: %s", err)

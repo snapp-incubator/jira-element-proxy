@@ -28,7 +28,10 @@ type (
 	}
 
 	Element struct {
-		URL string `koanf:"url"`
+		URL         string `koanf:"url"`
+		RuntimeURL  string `koanf:"runtime_url"`
+		PlatformURL string `koanf:"platform_url"`
+		NetworkURL  string `koanf:"network_url"`
 	}
 )
 
