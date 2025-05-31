@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"github.com/snapp-incubator/jira-element-proxy/internal/config"
 	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/request"
-	"io"
-	"net/http"
 )
 
 const (
@@ -98,7 +99,9 @@ func (p *Proxy) proxyRequest(txt string, url string) bool {
 		logrus.Errorf("proxy request to element error: %s", err)
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode == http.StatusOK {
 		return true
