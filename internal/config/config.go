@@ -19,16 +19,16 @@ const (
 type (
 	// Config holds all configurations.
 	Config struct {
-		API     API     `koanf:"api"`
-		Element Element `koanf:"element"`
+		API     API           `koanf:"api"`
+		MSTeams MSTeamsConfig `koanf:"msteams"`
 	}
 
 	API struct {
 		Port int `koanf:"port"`
 	}
 
-	Element struct {
-		URL         string `koanf:"url"`
+	MSTeamsConfig struct {
+		URL         string `koanf:"url"` // Default MS Teams Webhook URL
 		RuntimeURL  string `koanf:"runtime_url"`
 		PlatformURL string `koanf:"platform_url"`
 		NetworkURL  string `koanf:"network_url"`

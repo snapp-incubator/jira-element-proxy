@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	DisplayName      = "Service Desk"
 	PLATFORM_SUBTEAM = "platform"
 	NETWORK_SUBTEAM  = "network"
 	RUNTIME_SUBTEAM  = "runtime"
@@ -22,119 +21,156 @@ const (
 
 type (
 	Proxy struct {
-		ElementConf config.Element
+		MSTeamsConf config.MSTeamsConfig
 	}
 
-	ElementBody struct {
-		Text        string `json:"text"`
-		DisplayName string `json:"displayName"`
+	MSTeamsMessage struct {
+		Text string `json:"text"`
 	}
 )
 
-func (p *Proxy) ProxyToElementHandler(isComment bool) echo.HandlerFunc {
+func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		subteam := c.Param("team")
-		req := &request.JiraRequest{}
-		body, err := io.ReadAll(c.Request().Body)
+		req := &request.JiraRequest{} // Your existing JiraRequest struct
+
+		// Read and re-buffer body for binding
+		bodyBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
+			logrus.Errorf("Failed to read request body: %s", err.Error())
 			return c.String(http.StatusInternalServerError, "Error reading body")
 		}
-
-		c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
-		fmt.Printf("Request Body: %s\n", string(body))
+		c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		err = c.Bind(req)
 		if err != nil {
-			logrus.Errorf("failed to read request body: %s", err.Error())
+			logrus.Errorf("failed to bind request body: %s", err.Error())
+			logrus.Debugf("Problematic request body for bind: %s", string(bodyBytes))
 			return c.NoContent(http.StatusBadRequest)
 		}
-		generatedElementText := generateElementText(req, isComment)
-		logrus.Printf("team name: %s\n generatedElementText: %s", subteam, generatedElementText)
+
+		// Re-use existing text generation, assuming it's suitable for Teams plain text
+		generatedText := generateTeamsTextMessage(req, isComment)
+		logrus.Printf("Team: %s, Generated Text: %s", subteam, generatedText)
+
+		var targetTeamsURL string
 		switch subteam {
 		case PLATFORM_SUBTEAM:
-			logrus.Printf("using platform url %s", p.ElementConf.PlatformURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.PlatformURL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.PlatformURL
+			logrus.Printf("Using MS Teams platform url: %s", targetTeamsURL)
 		case NETWORK_SUBTEAM:
-			logrus.Printf("using network url %s", p.ElementConf.NetworkURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.NetworkURL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.NetworkURL
+			logrus.Printf("Using MS Teams network url: %s", targetTeamsURL)
 		case RUNTIME_SUBTEAM:
-			logrus.Printf("using runtime url %s", p.ElementConf.RuntimeURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.RuntimeURL) {
-				return c.NoContent(http.StatusOK)
-			}
-		default:
-			if p.proxyRequest(generatedElementText, p.ElementConf.URL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.RuntimeURL
+			logrus.Printf("Using MS Teams runtime url: %s", targetTeamsURL)
+		default: // Includes empty subteam (e.g. POST / or POST /comment)
+			targetTeamsURL = p.MSTeamsConf.URL
+			logrus.Printf("Using default MS Teams url: %s for team param '%s'", targetTeamsURL, subteam)
+		}
+
+		if targetTeamsURL == "" {
+			logrus.Warnf("No MS Teams URL configured for team '%s' (or default). Skipping notification.", subteam)
+			// Return OK because the request was processed, but no action taken for this part.
+			// Or, if a URL is mandatory, return an error.
+			return c.NoContent(http.StatusOK)
+		}
+
+		if p.sendToMSTeams(generatedText, targetTeamsURL) {
+			return c.NoContent(http.StatusOK)
 		}
 
 		return c.NoContent(http.StatusInternalServerError)
 	}
 }
 
-func (p *Proxy) proxyRequest(txt string, url string) bool {
-	body, err := json.Marshal(ElementBody{
-		Text:        txt,
-		DisplayName: DisplayName,
-	})
+// sendToMSTeams is the new function to send messages to a specific MS Teams webhook URL
+func (p *Proxy) sendToMSTeams(textPayload string, webhookURL string) bool {
+	message := MSTeamsMessage{
+		Text: textPayload,
+	}
+
+	body, err := json.Marshal(message)
 	if err != nil {
-		logrus.Errorf("marshal request body error: %s", err)
+		logrus.Errorf("MS Teams: marshal request body error: %s", err)
 		return false
 	}
 
-	proxyReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
 	if err != nil {
-		logrus.Errorf("create proxy request error: %s", err)
+		logrus.Errorf("MS Teams: create request error: %s for URL %s", err, webhookURL)
 		return false
 	}
+	req.Header.Add("Content-Type", "application/json")
 
-	proxyReq.Header.Add("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(proxyReq)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logrus.Errorf("proxy request to element error: %s", err)
+		logrus.Errorf("MS Teams: request error: %s for URL %s", err, webhookURL)
 		return false
 	}
-	defer func() {
-		_ = resp.Body.Close()
-	}()
+	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		logrus.Infof("MS Teams: successfully sent webhook to %s", webhookURL)
 		return true
 	}
 
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Errorf("element response body read error: %s", err)
+	responseBodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		logrus.Errorf("MS Teams: response body read error: %s (after non-success status %d from %s)", readErr, resp.StatusCode, webhookURL)
 		return false
 	}
-
-	logrus.Errorf("element response body read error: %s", responseBody)
+	logrus.Errorf("MS Teams: failed to send webhook. Status: %d, URL: %s, Response: %s", resp.StatusCode, webhookURL, string(responseBodyBytes))
 	return false
 }
 
-func generateElementText(req *request.JiraRequest, isComment bool) string {
-	if isComment {
-		return fmt.Sprintf(
-			"📰\nNew Comment Added\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s\n",
-			req.Fields.CustomField10003.RequestType.Name,
-			req.Fields.Summary,
-			req.Fields.Creator.DisplayName,
-			req.Fields.CustomField10003.Links.Web,
-			req.Fields.Assignee.DisplayName,
-		)
-	} else {
-		return fmt.Sprintf(
-			"🎯\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
-			req.Fields.CustomField10003.RequestType.Name,
-			req.Fields.Summary,
-			req.Fields.Creator.DisplayName,
-			req.Fields.CustomField10003.Links.Web,
-			req.Fields.Assignee.DisplayName,
-		)
+func generateTeamsTextMessage(req *request.JiraRequest, isComment bool) string {
+	creatorName := "N/A"
+	if req.Fields.Creator.DisplayName != "" {
+		creatorName = req.Fields.Creator.DisplayName
+	} else if req.Fields.Creator.Name != "" {
+		creatorName = req.Fields.Creator.Name
 	}
+
+	assigneeName := "N/A"
+	if req.Fields.Assignee.DisplayName != "" {
+		assigneeName = req.Fields.Assignee.DisplayName
+	} else if req.Fields.Assignee.Name != "" {
+		assigneeName = req.Fields.Assignee.Name
+	}
+
+	requestTypeName := "N/A"
+	webLink := "N/A"
+	if req.Fields.CustomField10003.RequestType.Name != "" {
+		requestTypeName = req.Fields.CustomField10003.RequestType.Name
+	}
+	if req.Fields.CustomField10003.Links.Web != "" {
+		webLink = req.Fields.CustomField10003.Links.Web
+	}
+
+	summary := "N/A"
+	if req.Fields.Summary != "" {
+		summary = req.Fields.Summary
+	}
+
+	var titlePrefix string
+	if isComment {
+		titlePrefix = "📰 **New Comment Added**"
+	} else {
+		titlePrefix = "🎯 **New Issue/Update**"
+	}
+	return fmt.Sprintf(
+		"%s\n\n"+
+			"**Type:** %s \n\n"+
+			"**Summary:** %s \n\n"+
+			"**Issuer:** %s \n\n"+
+			"**URL:** [%s](%s) \n\n"+
+			"**Assignee:** %s",
+		titlePrefix,
+		requestTypeName,
+		summary,
+		creatorName,
+		webLink, webLink,
+		assigneeName,
+	)
 }

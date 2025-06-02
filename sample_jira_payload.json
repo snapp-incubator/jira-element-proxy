@@ -1,0 +1,25 @@
+{
+    "self": "http://localhost/jira/rest/api/2/issue/10000",
+    "id": 10000,
+    "key": "PROJ-123",
+    "changelog": {},
+    "fields": {
+        "summary": "This is a test Jira issue summary!",
+        "creator": {
+            "name": "fmulder",
+            "displayName": "Fox Mulder"
+        },
+        "assignee": {
+            "name": "dscully",
+            "displayName": "Dana Scully"
+        },
+        "customfield_10003": {
+            "_links": {
+                "web": "http://localhost/jira/browse/PROJ-123"
+            },
+            "requestType": {
+                "name": "IT Help"
+            }
+        }
+    }
+}
