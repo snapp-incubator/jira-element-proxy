@@ -44,8 +44,9 @@ func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 			return c.NoContent(http.StatusBadRequest)
 		}
 
-		generatedText := generateTeamsAdaptiveCard(req, isComment)
-		logrus.Printf("Team: %s, Generated Text: %s", subteam, generatedText)
+		// --- Generate Adaptive Card ---
+		generatedCard := generateTeamsAdaptiveCard(req, isComment)
+		logrus.Printf("Team: %s, Generated Text: %s", subteam, generatedCard)
 
 		var targetTeamsURL string
 		switch subteam {
@@ -69,7 +70,7 @@ func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 			return c.NoContent(http.StatusOK)
 		}
 
-		if p.sendToMSTeams(generatedText, targetTeamsURL) {
+		if p.sendToMSTeams(generatedCard, targetTeamsURL) {
 			return c.NoContent(http.StatusOK)
 		}
 
@@ -79,7 +80,7 @@ func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 
 func (p *Proxy) sendToMSTeams(card AdaptiveCard, webhookURL string) bool {
 	payload := MSTeamsAdaptiveCardMessage{
-		Type: "message", // Standard type for messages with attachments
+		Type: "message",
 		Attachments: []Attachment{
 			{
 				ContentType: "application/vnd.microsoft.card.adaptive",
@@ -127,21 +128,16 @@ func (p *Proxy) sendToMSTeams(card AdaptiveCard, webhookURL string) bool {
 func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) AdaptiveCard {
 	creatorDisplayName := "N/A"
 	creatorMentionID := ""
-
 	if req.Fields.Creator.EmailAddress != "" {
 		creatorMentionID = req.Fields.Creator.EmailAddress
 		if req.Fields.Creator.DisplayName != "" {
 			creatorDisplayName = req.Fields.Creator.DisplayName
-		} else if req.Fields.Creator.Name != "" {
-			creatorDisplayName = req.Fields.Creator.Name
 		} else {
-			creatorDisplayName = req.Fields.Creator.EmailAddress
+			creatorDisplayName = req.Fields.Creator.Name
 		}
 	} else if req.Fields.Creator.DisplayName != "" {
-		creatorDisplayName = req.Fields.Creator.DisplayName
-	} else if req.Fields.Creator.Name != "" {
-		creatorDisplayName = req.Fields.Creator.Name
-	}
+        creatorDisplayName = req.Fields.Creator.DisplayName
+    }
 
 	assigneeDisplayName := "N/A"
 	assigneeMentionID := ""
@@ -149,36 +145,59 @@ func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) Adaptiv
 		assigneeMentionID = req.Fields.Assignee.EmailAddress
 		if req.Fields.Assignee.DisplayName != "" {
 			assigneeDisplayName = req.Fields.Assignee.DisplayName
-		} else if req.Fields.Assignee.Name != "" {
-			assigneeDisplayName = req.Fields.Assignee.Name
 		} else {
-			assigneeDisplayName = req.Fields.Assignee.EmailAddress
+			assigneeDisplayName = req.Fields.Assignee.Name
 		}
 	} else if req.Fields.Assignee.DisplayName != "" {
-		assigneeDisplayName = req.Fields.Assignee.DisplayName
-	} else if req.Fields.Assignee.Name != "" {
-		assigneeDisplayName = req.Fields.Assignee.Name
-	}
+        assigneeDisplayName = req.Fields.Assignee.DisplayName
+    }
 
 	requestTypeName := "N/A"
-	webLink := "#"
-	if req.Fields.CustomField10003.RequestType.Name != "" {
-		requestTypeName = req.Fields.CustomField10003.RequestType.Name
-	}
-	if req.Fields.CustomField10003.Links.Web != "" {
-		webLink = req.Fields.CustomField10003.Links.Web
+    webLink := "#"
+    if req.Fields.CustomField10003.RequestType.Name != "" {
+        requestTypeName = req.Fields.CustomField10003.RequestType.Name
+    }
+    if req.Fields.CustomField10003.Links.Web != "" {
+        webLink = req.Fields.CustomField10003.Links.Web
+    }
+    summary := "N/A"
+    if req.Fields.Summary != "" {
+        summary = req.Fields.Summary
+    }
+    var title string
+    if isComment {
+        title = "📰 **New Comment Added**"
+    } else {
+        title = "🎯 **New Issue/Update**"
+    }
+
+
+	mentionEntities := []MentionEntity{}
+	
+	creatorMentionText := creatorDisplayName
+	if creatorMentionID != "" {
+		creatorMentionText = fmt.Sprintf("<at>%s</at>", creatorDisplayName)
+		mentionEntities = append(mentionEntities, MentionEntity{
+			Type: "mention",
+			Text: creatorMentionText,
+			Mentioned: MentionedUser{
+				ID:   creatorMentionID,
+				Name: creatorDisplayName,
+			},
+		})
 	}
 
-	summary := "N/A"
-	if req.Fields.Summary != "" {
-		summary = req.Fields.Summary
-	}
-
-	var title string
-	if isComment {
-		title = "📰 New Comment Added"
-	} else {
-		title = "🎯 New Issue/Update"
+	assigneeMentionText := assigneeDisplayName
+	if assigneeMentionID != "" {
+		assigneeMentionText = fmt.Sprintf("<at>%s</at>", assigneeDisplayName)
+		mentionEntities = append(mentionEntities, MentionEntity{
+			Type: "mention",
+			Text: assigneeMentionText,
+			Mentioned: MentionedUser{
+				ID:   assigneeMentionID,
+				Name: assigneeDisplayName,
+			},
+		})
 	}
 
 	cardBody := []interface{}{
@@ -186,46 +205,12 @@ func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) Adaptiv
 		FactSet{Type: "FactSet", Facts: []Fact{
 			{Title: "Type:", Value: requestTypeName},
 			{Title: "Summary:", Value: summary},
+			{Title: "Issuer:", Value: creatorMentionText},
+			{Title: "Assignee:", Value: assigneeMentionText},
 		}},
 	}
 
-	issuerTextBlock := TextBlock{Type: "TextBlock", Wrap: true}
-	if creatorMentionID != "" {
-		issuerTextBlock.Text = fmt.Sprintf("**Issuer:** <at>%s</at>", creatorDisplayName)
-		issuerTextBlock.Inlines = []interface{}{
-			MentionText{
-				Type: "mention",
-				Text: fmt.Sprintf("<at>%s</at>", creatorDisplayName),
-				Mentioned: MentionedUser{
-					ID:   creatorMentionID,
-					Name: creatorDisplayName,
-				},
-			},
-		}
-	} else {
-		issuerTextBlock.Text = fmt.Sprintf("**Issuer:** %s", creatorDisplayName)
-	}
-	cardBody = append(cardBody, issuerTextBlock)
-
-	assigneeTextBlock := TextBlock{Type: "TextBlock", Wrap: true}
-	if assigneeMentionID != "" {
-		assigneeTextBlock.Text = fmt.Sprintf("**Assignee:** <at>%s</at>", assigneeDisplayName)
-		assigneeTextBlock.Inlines = []interface{}{
-			MentionText{
-				Type: "mention",
-				Text: fmt.Sprintf("<at>%s</at>", assigneeDisplayName),
-				Mentioned: MentionedUser{
-					ID:   assigneeMentionID,
-					Name: assigneeDisplayName,
-				},
-			},
-		}
-	} else {
-		assigneeTextBlock.Text = fmt.Sprintf("**Assignee:** %s", assigneeDisplayName)
-	}
-	cardBody = append(cardBody, assigneeTextBlock)
-
-	return AdaptiveCard{
+	card := AdaptiveCard{
 		Type:    "AdaptiveCard",
 		Version: "1.5",
 		Body:    cardBody,
@@ -233,4 +218,12 @@ func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) Adaptiv
 			ActionOpenURL{Type: "Action.OpenUrl", Title: "View Issue in Jira", URL: webLink},
 		},
 	}
+
+	if len(mentionEntities) > 0 {
+		card.MSTeams = &MSTeamsInfo{
+			Entities: mentionEntities,
+		}
+	}
+
+	return card
 }
