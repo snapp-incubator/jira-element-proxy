@@ -1,7 +1,7 @@
 # Jira to Microsoft Teams Webhook Proxy
 
-[](https://golang.org/)
-[](https://opensource.org/licenses/MIT)
+[![Go](https://img.shields.io/badge/Go-1.18%2B-blue?logo=go)](https://golang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A lightweight, configurable webhook proxy written in Go that receives Jira issue notifications and forwards them as richly formatted, user-mention-enabled messages to specific Microsoft Teams channels.
 
@@ -40,7 +40,7 @@ The data flow is simple and effective:
   * **Jira Instance:** With administrative permissions to create webhooks.
   * **Microsoft Teams:** With permissions to add an "Incoming Webhook" connector to a channel.
 
-### 1\. Configure Microsoft Teams
+### 1. Configure Microsoft Teams
 
 For each Teams channel you want to send notifications to, you must create a unique **Incoming Webhook URL**:
 
