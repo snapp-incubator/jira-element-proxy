@@ -46,7 +46,7 @@ func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 
 		// --- Generate Adaptive Card ---
 		generatedCard := generateTeamsAdaptiveCard(req, isComment)
-		logrus.Printf("Team: %s, Generated Text: %s", subteam, generatedCard)
+		logrus.Printf("Team: %s, Generated Text: %+v", subteam, generatedCard)
 
 		var targetTeamsURL string
 		switch subteam {
@@ -109,7 +109,11 @@ func (p *Proxy) sendToMSTeams(card AdaptiveCard, webhookURL string) bool {
 		logrus.Errorf("MS Teams (AdaptiveCard): request error: %s for URL %s", err, webhookURL)
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logrus.Errorf("MS Teams (AdaptiveCard): error closing response body: %s", err)
+		}
+	}()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		logrus.Infof("MS Teams (AdaptiveCard): successfully sent webhook to %s", webhookURL)
@@ -136,8 +140,8 @@ func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) Adaptiv
 			creatorDisplayName = req.Fields.Creator.Name
 		}
 	} else if req.Fields.Creator.DisplayName != "" {
-        creatorDisplayName = req.Fields.Creator.DisplayName
-    }
+		creatorDisplayName = req.Fields.Creator.DisplayName
+	}
 
 	assigneeDisplayName := "N/A"
 	assigneeMentionID := ""
@@ -149,31 +153,30 @@ func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) Adaptiv
 			assigneeDisplayName = req.Fields.Assignee.Name
 		}
 	} else if req.Fields.Assignee.DisplayName != "" {
-        assigneeDisplayName = req.Fields.Assignee.DisplayName
-    }
+		assigneeDisplayName = req.Fields.Assignee.DisplayName
+	}
 
 	requestTypeName := "N/A"
-    webLink := "#"
-    if req.Fields.CustomField10003.RequestType.Name != "" {
-        requestTypeName = req.Fields.CustomField10003.RequestType.Name
-    }
-    if req.Fields.CustomField10003.Links.Web != "" {
-        webLink = req.Fields.CustomField10003.Links.Web
-    }
-    summary := "N/A"
-    if req.Fields.Summary != "" {
-        summary = req.Fields.Summary
-    }
-    var title string
-    if isComment {
-        title = "📰 **New Comment Added**"
-    } else {
-        title = "🎯 **New Issue/Update**"
-    }
-
+	webLink := "#"
+	if req.Fields.CustomField10003.RequestType.Name != "" {
+		requestTypeName = req.Fields.CustomField10003.RequestType.Name
+	}
+	if req.Fields.CustomField10003.Links.Web != "" {
+		webLink = req.Fields.CustomField10003.Links.Web
+	}
+	summary := "N/A"
+	if req.Fields.Summary != "" {
+		summary = req.Fields.Summary
+	}
+	var title string
+	if isComment {
+		title = "📰 **New Comment Added**"
+	} else {
+		title = "🎯 **New Issue/Update**"
+	}
 
 	mentionEntities := []MentionEntity{}
-	
+
 	creatorMentionText := creatorDisplayName
 	if creatorMentionID != "" {
 		creatorMentionText = fmt.Sprintf("<at>%s</at>", creatorDisplayName)
