@@ -4,7 +4,7 @@ metadata:
   name: jira-webhook-proxy-config
 data:
   config.yml: |-
-    element:
+    msteams:
       url: {{ .Values.jira_element_webhook_url }}
       runtime_url: {{ .Values.service_desk_notification.runtime }}
       platform_url: {{ .Values.service_desk_notification.platform }}
