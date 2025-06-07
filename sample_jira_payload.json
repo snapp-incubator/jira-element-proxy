@@ -1,0 +1,149 @@
+{
+    "self": "http://your-jira-instance.com/rest/api/2/issue/10001",
+    "id": "10001",
+    "key": "PROJ-125",
+    "changelog": {
+        "startAt": 0,
+        "maxResults": 0,
+        "total": 0,
+        "histories": []
+    },
+    "fields": {
+        "summary": "Urgent: Production server is down!",
+        "issuetype": {
+            "self": "http://your-jira-instance.com/rest/api/2/issuetype/10004",
+            "id": "10004",
+            "description": "A problem which impairs or prevents the functions of the product.",
+            "iconUrl": "http://your-jira-instance.com/secure/viewavatar?size=xsmall&avatarId=10303&avatarType=issuetype",
+            "name": "Bug",
+            "subtask": false,
+            "namedValue": "Bug"
+        },
+        "creator": {
+            "self": "http://your-jira-instance.com/rest/api/2/user?username=f.mulder",
+            "name": "f.mulder",
+            "key": "f.mulder",
+            "emailAddress": "f.mulder@x.io",
+            "avatarUrls": {
+                "48x48": "http://your-jira-instance.com/secure/useravatar?ownerId=f.mulder&avatarId=10122",
+                "24x24": "http://your-jira-instance.com/secure/useravatar?size=small&ownerId=f.mulder&avatarId=10122",
+                "16x16": "http://your-jira-instance.com/secure/useravatar?size=xsmall&ownerId=f.mulder&avatarId=10122",
+                "32x32": "http://your-jira-instance.com/secure/useravatar?size=medium&ownerId=f.mulder&avatarId=10122"
+            },
+            "displayName": "Fox Mulder",
+            "active": true,
+            "timeZone": "America/New_York"
+        },
+        "assignee": {
+            "self": "http://your-jira-instance.com/rest/api/2/user?username=d.scully",
+            "name": "d.scully",
+            "key": "d.scully",
+            "emailAddress": "d.scully@x.io",
+            "avatarUrls": {
+                "48x48": "http://your-jira-instance.com/secure/useravatar?ownerId=d.scully&avatarId=10123",
+                "24x24": "http://your-jira-instance.com/secure/useravatar?size=small&ownerId=d.scully&avatarId=10123",
+                "16x16": "http://your-jira-instance.com/secure/useravatar?size=xsmall&ownerId=d.scully&avatarId=10123",
+                "32x32": "http://your-jira-instance.com/secure/useravatar?size=medium&ownerId=d.scully&avatarId=10123"
+            },
+            "displayName": "Dana Scully",
+            "active": true,
+            "timeZone": "America/New_York"
+        },
+        "reporter": {
+            "self": "http://your-jira-instance.com/rest/api/2/user?username=w.skinner",
+            "name": "w.skinner",
+            "key": "w.skinner",
+            "emailAddress": "w.skinner@x.io",
+            "displayName": "Walter Skinner",
+            "active": true,
+            "timeZone": "America/New_York"
+        },
+        "priority": {
+            "self": "http://your-jira-instance.com/rest/api/2/priority/1",
+            "iconUrl": "http://your-jira-instance.com/images/icons/priorities/highest.svg",
+            "name": "Highest",
+            "id": "1",
+            "namedValue": "Highest"
+        },
+        "status": {
+            "self": "http://your-jira-instance.com/rest/api/2/status/10000",
+            "description": "The issue is currently being worked on.",
+            "iconUrl": "http://your-jira-instance.com/images/icons/statuses/inprogress.png",
+            "name": "In Progress",
+            "id": "10000",
+            "statusCategory": {
+                "self": "http://your-jira-instance.com/rest/api/2/statuscategory/4",
+                "id": 4,
+                "key": "indeterminate",
+                "colorName": "yellow",
+                "name": "In Progress"
+            }
+        },
+        "labels": [
+            "production",
+            "critical-bug"
+        ],
+        "components": [
+            {
+                "self": "http://your-jira-instance.com/rest/api/2/component/10000",
+                "id": "10000",
+                "name": "Backend Services",
+                "description": "Core backend processing services"
+            }
+        ],
+        "created": 1672531200000,
+        "updated": 1672534800000,
+        "customfield_10003": {
+            "_links": {
+                "web": "http://your-jira-instance.com/servicedesk/customer/portal/1/PROJ-125",
+                "jiraRest": "http://your-jira-instance.com/rest/servicedeskapi/request/PROJ-125",
+                "self": "http://your-jira-instance.com/rest/servicedeskapi/request/PROJ-125"
+            },
+            "requestType": {
+                "id": "10100",
+                "_links": {},
+                "name": "Production Outage Report",
+                "description": "Report an outage in the production environment.",
+                "helpText": "Please provide all relevant details about the outage.",
+                "serviceDeskId": "1",
+                "groupIds": [
+                    "10020"
+                ],
+                "icon": {
+                    "id": "10501",
+                    "_links": {}
+                }
+            },
+            "currentStatus": {
+                "status": "Investigating",
+                "statusDate": {
+                    "iso8601": "2025-06-01T10:00:00.000-0500",
+                    "jira": "01/Jun/25 10:00 AM",
+                    "friendly": "Today 10:00 AM",
+                    "epochMillis": 1717254000000
+                }
+            }
+        },
+        "fixVersions": [],
+        "subtasks": [],
+        "progress": {
+            "progress": 50,
+            "total": 100
+        },
+        "votes": {
+            "self": "http://your-jira-instance.com/rest/api/2/issue/PROJ-125/votes",
+            "votes": 10,
+            "hasVoted": false
+        },
+        "watches": {
+            "self": "http://your-jira-instance.com/rest/api/2/issue/PROJ-125/watchers",
+            "watchCount": 5,
+            "isWatching": true
+        },
+        "timetracking": {
+            "originalEstimateSeconds": 14400,
+            "remainingEstimateSeconds": 7200,
+            "timeSpentSeconds": 7200
+        }
+    }
+}

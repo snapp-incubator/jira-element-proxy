@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	DisplayName      = "Service Desk"
 	PLATFORM_SUBTEAM = "platform"
 	NETWORK_SUBTEAM  = "network"
 	RUNTIME_SUBTEAM  = "runtime"
@@ -22,119 +21,212 @@ const (
 
 type (
 	Proxy struct {
-		ElementConf config.Element
-	}
-
-	ElementBody struct {
-		Text        string `json:"text"`
-		DisplayName string `json:"displayName"`
+		MSTeamsConf config.MSTeamsConfig
 	}
 )
 
-func (p *Proxy) ProxyToElementHandler(isComment bool) echo.HandlerFunc {
+func (p *Proxy) ProxyToMSTeamsHandler(isComment bool) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		subteam := c.Param("team")
 		req := &request.JiraRequest{}
-		body, err := io.ReadAll(c.Request().Body)
+
+		bodyBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
+			logrus.Errorf("Failed to read request body: %s", err.Error())
 			return c.String(http.StatusInternalServerError, "Error reading body")
 		}
-
-		c.Request().Body = io.NopCloser(bytes.NewBuffer(body))
-		fmt.Printf("Request Body: %s\n", string(body))
+		c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
 		err = c.Bind(req)
 		if err != nil {
-			logrus.Errorf("failed to read request body: %s", err.Error())
+			logrus.Errorf("failed to bind request body: %s", err.Error())
+			logrus.Debugf("Problematic request body for bind: %s", string(bodyBytes))
 			return c.NoContent(http.StatusBadRequest)
 		}
-		generatedElementText := generateElementText(req, isComment)
-		logrus.Printf("team name: %s\n generatedElementText: %s", subteam, generatedElementText)
+
+		// --- Generate Adaptive Card ---
+		generatedCard := generateTeamsAdaptiveCard(req, isComment)
+		logrus.Printf("Team: %s, Generated Text: %+v", subteam, generatedCard)
+
+		var targetTeamsURL string
 		switch subteam {
 		case PLATFORM_SUBTEAM:
-			logrus.Printf("using platform url %s", p.ElementConf.PlatformURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.PlatformURL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.PlatformURL
+			logrus.Printf("Using MS Teams platform url: %s", targetTeamsURL)
 		case NETWORK_SUBTEAM:
-			logrus.Printf("using network url %s", p.ElementConf.NetworkURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.NetworkURL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.NetworkURL
+			logrus.Printf("Using MS Teams network url: %s", targetTeamsURL)
 		case RUNTIME_SUBTEAM:
-			logrus.Printf("using runtime url %s", p.ElementConf.RuntimeURL)
-			if p.proxyRequest(generatedElementText, p.ElementConf.RuntimeURL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.RuntimeURL
+			logrus.Printf("Using MS Teams runtime url: %s", targetTeamsURL)
 		default:
-			if p.proxyRequest(generatedElementText, p.ElementConf.URL) {
-				return c.NoContent(http.StatusOK)
-			}
+			targetTeamsURL = p.MSTeamsConf.URL
+			logrus.Printf("Using default MS Teams url: %s for team param '%s'", targetTeamsURL, subteam)
+		}
+
+		if targetTeamsURL == "" {
+			logrus.Warnf("No MS Teams URL configured for team '%s' (or default). Skipping notification.", subteam)
+
+			return c.NoContent(http.StatusOK)
+		}
+
+		if p.sendToMSTeams(generatedCard, targetTeamsURL) {
+			return c.NoContent(http.StatusOK)
 		}
 
 		return c.NoContent(http.StatusInternalServerError)
 	}
 }
 
-func (p *Proxy) proxyRequest(txt string, url string) bool {
-	body, err := json.Marshal(ElementBody{
-		Text:        txt,
-		DisplayName: DisplayName,
-	})
+func (p *Proxy) sendToMSTeams(card AdaptiveCard, webhookURL string) bool {
+	payload := MSTeamsAdaptiveCardMessage{
+		Type: "message",
+		Attachments: []Attachment{
+			{
+				ContentType: "application/vnd.microsoft.card.adaptive",
+				Content:     card,
+			},
+		},
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
-		logrus.Errorf("marshal request body error: %s", err)
+		logrus.Errorf("MS Teams (AdaptiveCard): marshal request body error: %s", err)
 		return false
 	}
 
-	proxyReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	logrus.Debugf("MS Teams (AdaptiveCard): Sending JSON payload: %s", string(body))
+
+	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(body))
 	if err != nil {
-		logrus.Errorf("create proxy request error: %s", err)
+		logrus.Errorf("MS Teams (AdaptiveCard): create request error: %s for URL %s", err, webhookURL)
 		return false
 	}
+	req.Header.Add("Content-Type", "application/json; charset=utf-8")
 
-	proxyReq.Header.Add("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(proxyReq)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logrus.Errorf("proxy request to element error: %s", err)
+		logrus.Errorf("MS Teams (AdaptiveCard): request error: %s for URL %s", err, webhookURL)
 		return false
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			logrus.Errorf("MS Teams (AdaptiveCard): error closing response body: %s", err)
+		}
 	}()
 
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		logrus.Infof("MS Teams (AdaptiveCard): successfully sent webhook to %s", webhookURL)
 		return true
 	}
 
-	responseBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		logrus.Errorf("element response body read error: %s", err)
+	responseBodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		logrus.Errorf("MS Teams (AdaptiveCard): response body read error: %s (after non-success status %d from %s)", readErr, resp.StatusCode, webhookURL)
 		return false
 	}
-
-	logrus.Errorf("element response body read error: %s", responseBody)
+	logrus.Errorf("MS Teams (AdaptiveCard): failed to send webhook. Status: %d, URL: %s, Response: %s", resp.StatusCode, webhookURL, string(responseBodyBytes))
 	return false
 }
 
-func generateElementText(req *request.JiraRequest, isComment bool) string {
-	if isComment {
-		return fmt.Sprintf(
-			"📰\nNew Comment Added\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s\n",
-			req.Fields.CustomField10003.RequestType.Name,
-			req.Fields.Summary,
-			req.Fields.Creator.DisplayName,
-			req.Fields.CustomField10003.Links.Web,
-			req.Fields.Assignee.DisplayName,
-		)
-	} else {
-		return fmt.Sprintf(
-			"🎯\nType: %s\nSummary: %s\nIssuer: %s\nURL: %s\nAssignee: %s",
-			req.Fields.CustomField10003.RequestType.Name,
-			req.Fields.Summary,
-			req.Fields.Creator.DisplayName,
-			req.Fields.CustomField10003.Links.Web,
-			req.Fields.Assignee.DisplayName,
-		)
+func generateTeamsAdaptiveCard(req *request.JiraRequest, isComment bool) AdaptiveCard {
+	creatorDisplayName := "N/A"
+	creatorMentionID := ""
+	if req.Fields.Creator.EmailAddress != "" {
+		creatorMentionID = req.Fields.Creator.EmailAddress
+		if req.Fields.Creator.DisplayName != "" {
+			creatorDisplayName = req.Fields.Creator.DisplayName
+		} else {
+			creatorDisplayName = req.Fields.Creator.Name
+		}
+	} else if req.Fields.Creator.DisplayName != "" {
+		creatorDisplayName = req.Fields.Creator.DisplayName
 	}
+
+	assigneeDisplayName := "N/A"
+	assigneeMentionID := ""
+	if req.Fields.Assignee.EmailAddress != "" {
+		assigneeMentionID = req.Fields.Assignee.EmailAddress
+		if req.Fields.Assignee.DisplayName != "" {
+			assigneeDisplayName = req.Fields.Assignee.DisplayName
+		} else {
+			assigneeDisplayName = req.Fields.Assignee.Name
+		}
+	} else if req.Fields.Assignee.DisplayName != "" {
+		assigneeDisplayName = req.Fields.Assignee.DisplayName
+	}
+
+	requestTypeName := "N/A"
+	webLink := "#"
+	if req.Fields.CustomField10003.RequestType.Name != "" {
+		requestTypeName = req.Fields.CustomField10003.RequestType.Name
+	}
+	if req.Fields.CustomField10003.Links.Web != "" {
+		webLink = req.Fields.CustomField10003.Links.Web
+	}
+	summary := "N/A"
+	if req.Fields.Summary != "" {
+		summary = req.Fields.Summary
+	}
+	var title string
+	if isComment {
+		title = "📰 **New Comment Added**"
+	} else {
+		title = "🎯 **New Issue/Update**"
+	}
+
+	mentionEntities := []MentionEntity{}
+
+	creatorMentionText := creatorDisplayName
+	if creatorMentionID != "" {
+		creatorMentionText = fmt.Sprintf("<at>%s</at>", creatorDisplayName)
+		mentionEntities = append(mentionEntities, MentionEntity{
+			Type: "mention",
+			Text: creatorMentionText,
+			Mentioned: MentionedUser{
+				ID:   creatorMentionID,
+				Name: creatorDisplayName,
+			},
+		})
+	}
+
+	assigneeMentionText := assigneeDisplayName
+	if assigneeMentionID != "" {
+		assigneeMentionText = fmt.Sprintf("<at>%s</at>", assigneeDisplayName)
+		mentionEntities = append(mentionEntities, MentionEntity{
+			Type: "mention",
+			Text: assigneeMentionText,
+			Mentioned: MentionedUser{
+				ID:   assigneeMentionID,
+				Name: assigneeDisplayName,
+			},
+		})
+	}
+
+	cardBody := []interface{}{
+		TextBlock{Type: "TextBlock", Text: title, Weight: "bolder", Size: "medium", Wrap: true},
+		FactSet{Type: "FactSet", Facts: []Fact{
+			{Title: "Type:", Value: requestTypeName},
+			{Title: "Summary:", Value: summary},
+			{Title: "Issuer:", Value: creatorMentionText},
+			{Title: "Assignee:", Value: assigneeMentionText},
+		}},
+	}
+
+	card := AdaptiveCard{
+		Type:    "AdaptiveCard",
+		Version: "1.5",
+		Body:    cardBody,
+		Actions: []interface{}{
+			ActionOpenURL{Type: "Action.OpenUrl", Title: "View Issue in Jira", URL: webLink},
+		},
+	}
+
+	if len(mentionEntities) > 0 {
+		card.MSTeams = &MSTeamsInfo{
+			Entities: mentionEntities,
+		}
+	}
+
+	return card
 }

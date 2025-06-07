@@ -3,11 +3,12 @@ package api
 import (
 	"errors"
 	"fmt"
-	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/handler"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/handler"
 
 	"github.com/snapp-incubator/jira-element-proxy/internal/config"
 
@@ -19,14 +20,16 @@ import (
 func main(cfg config.Config) {
 	app := echo.New()
 
-	proxyHandler := handler.Proxy{ElementConf: cfg.Element}
+	proxyHandler := handler.Proxy{MSTeamsConf: cfg.MSTeams}
 
-	logrus.Println("API has been started :D")
+	logrus.Println("API has been started (MS Teams mode) :D")
 
 	app.GET("/healthz", func(c echo.Context) error { return c.NoContent(http.StatusNoContent) })
 
-	app.POST("/:team", proxyHandler.ProxyToElementHandler(false))
-	app.POST("/comment/:team", proxyHandler.ProxyToElementHandler(true))
+	app.POST("/:team", proxyHandler.ProxyToMSTeamsHandler(false))
+	app.POST("/comment/:team", proxyHandler.ProxyToMSTeamsHandler(true))
+	app.POST("/", proxyHandler.ProxyToMSTeamsHandler(false))
+	app.POST("/comment", proxyHandler.ProxyToMSTeamsHandler(true))
 
 	if err := app.Start(fmt.Sprintf(":%d", cfg.API.Port)); !errors.Is(err, http.ErrServerClosed) {
 		logrus.Fatalf("echo initiation failed: %s", err)
@@ -37,13 +40,11 @@ func main(cfg config.Config) {
 	<-quit
 }
 
-// Register API command.
 func Register(root *cobra.Command, cfg config.Config) {
 	root.AddCommand(
-		// nolint: exhaustivestruct
 		&cobra.Command{
 			Use:   "api",
-			Short: "Run API to serve the requests",
+			Short: "Run API to serve the requests (MS Teams mode)",
 			Run: func(cmd *cobra.Command, args []string) {
 				main(cfg)
 			},
