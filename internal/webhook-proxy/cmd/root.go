@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/snapp-incubator/jira-element-proxy/internal/config"
-	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/cmd/api"
+	"github.com/snapp-incubator/jira-msteams-proxy/internal/config"
+	"github.com/snapp-incubator/jira-msteams-proxy/internal/webhook-proxy/cmd/api"
 
 	"github.com/spf13/cobra"
 )

@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/handler"
+	"github.com/snapp-incubator/jira-msteams-proxy/internal/webhook-proxy/handler"
 
-	"github.com/snapp-incubator/jira-element-proxy/internal/config"
+	"github.com/snapp-incubator/jira-msteams-proxy/internal/config"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"

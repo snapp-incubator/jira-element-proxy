@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/snapp-incubator/jira-element-proxy/internal/webhook-proxy/cmd"
+	"github.com/snapp-incubator/jira-msteams-proxy/internal/webhook-proxy/cmd"
 )
 
 const (
